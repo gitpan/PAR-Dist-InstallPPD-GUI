@@ -2,7 +2,7 @@ package PAR::Dist::InstallPPD::GUI;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use File::Spec;
 use Config::IniFiles;
