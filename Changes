@@ -1,5 +1,10 @@
 Revision history for Perl extension PAR::Dist::InstallPPD::GUI.
 
+0.03  Sun Dec 21 19:03 2006
+    - Remove commented out code in parinstallppdgui.
+    - Instead, add an explanation on how to package it as
+      completely standalone
+
 0.02  Sun Dec 21 18:18 2006
     - This release require PAR::Dist::FromPPD 0.03 because 0.02 was broken.
 

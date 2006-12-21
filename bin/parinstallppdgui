@@ -2,118 +2,32 @@
 use strict;
 use warnings;
 
+our $VERSION = '0.03';
+
 use PAR::Dist::InstallPPD::GUI;
+
+# This special treatment when running from inside a par'd exe
+# means that it's possible to use the "-a file" option to pp to
+# include a copy of parinstallppd.exe WITHIN the parinstallppdgui.exe
+# and share common modules.
+# In order to do this, follow these steps:
+# - package parinstallppd into parinstallppd.exe
+# - package parinstallppdgui into parinstallppdgui.exe
+# - use "pare" from the contrib/ directory of the PAR-Packer
+#   distribution to make parinstallppd.exe dependent on
+#   parinstallppdgui.exe:
+#     pare -u parinstallppdgui.exe parinstallppd.exe
+# - Repackage parinstallppdgui.exe including the reduced parinstallppd.exe
+#     pp -o parinstallppdgui.exe -a parinstallppd.exe -l expat bin\parinstallppdgui
+
+if (defined $ENV{PAR_TEMP}) {
+	require Config;
+	require File::Spec;
+	$ENV{PATH} .= (defined $ENV{PATH} ? $Config::Config{path_sep} : '')
+                    . File::Spec->catdir($ENV{PAR_TEMP}, 'inc');
+	$ENV{PAR_GLOBAL_TEMP} = $ENV{PAR_TEMP};
+}
+
 my $gui = PAR::Dist::InstallPPD::GUI->new();
 $gui->run();
 
-=pod
-
-use Tk;
-use Tk::NoteBook;
-use Tk::ROText;
-use IPC::Run ();
-
-package Tk;
-use File::UserConfig ();
-
-my $cfgdir = File::UserConfig->configdir();
-print $cfgdir;
-package main;
-
-sub StartInstallation;
-
-my $mw = MainWindow->new();
-$mw->geometry( "800x600" );
-eval { # eval, in case fonts already exist
-	$mw->fontCreate(qw/C_normal  -family courier   -size 10/);
-	$mw->fontCreate(qw/C_bold    -family courier   -size 10 -weight bold/);
-};
-my $nb = $mw->NoteBook()->pack( -fill=>'both', -expand=>1 );
-
-my @tabs;
-push @tabs, $nb->add( "welcome",  -label => "Welcome" );
-push @tabs, $nb->add( "install",  -label => "Install" );
-push @tabs, $nb->add( "config", -label => "COnfiguration" );
-
-$tabs[0]->Label( -text=>"Welcome to PAR-Install-PPD-GUI!" )->pack( );
-
-
-# init install tab
-my $urientry;
-my $ppduri = 'http://';
-my $resulttext;
-my $should_wrap = 0;
-my $verbose = 0;
-{
-	my $fr = $tabs[1]->Frame()->pack(qw/-side top -fill both/);
-
-	my $urifr = $fr->Frame()->pack(qw/-side top -fill x/);
-	$urifr->Label(qw/-text/, "PPD URI: ")->pack(qw/-side left -ipady 10/);
-	$urientry = $urifr->Entry(
-		qw/-width 80 -textvariable/, \$ppduri
-	)->pack(qw/-side left -ipadx 10/);
-
-	$urifr->Button(
-		qw/-width 20 -text Install -command/, \&StartInstallation
-	)->pack(qw/-side left/);
-
-	my $resultfr = $fr->Frame()->pack(qw/-side top -fill both/);
-
-	my $tframe = $resultfr->Frame()->pack(qw/-side top -fill x/);
-	$tframe->Label(qw/-text/, "Results:")->pack(qw/-side left/);
-	$tframe->Checkbutton(
-		qw/-text/, "Wrap Lines",
-		qw/-variable/, \$should_wrap, qw/-command/, \&WrapToggle
-	)->pack(qw/-side left -padx 3/);
-	$tframe->Checkbutton(
-		qw/-text/, "Verbose Output",
-		qw/-variable/, \$verbose,
-	)->pack(qw/-side left -padx 3/);
-
-	$resulttext = $resultfr->Scrolled(
-		qw/ROText -scrollbars osoe -background white/
-	)->pack(qw/-side top -fill both -padx 5/);
-	$resulttext->tag(qw/configure output -foreground black -font C_normal/);
-	$resulttext->tag(qw/configure error -foreground red -font C_bold/);
-	WrapOff();
-}
-
-# Init Config tab
-my $parinstallppd = 'parinstallppd';
-{
-	my $fr = $tabs[2]->Frame()->pack(qw/-side top -fill both/);
-	
-}
-
-MainLoop;
-
-sub StartInstallation {
-	my $uri = $ppduri;
-	my @call = ($parinstallppd, '--uri', $ppduri);
-	push @call, '--verbose' if $verbose;
-	$resulttext->Contents('');
-	$resulttext->insert('0.0', '');
-	my $update_out = sub{
-		$resulttext->insert('insert', join("",@_), 'output');
-	};
-	my $update_err = sub{
-		$resulttext->insert('insert', join("",@_), 'error');
-	};
-	IPC::Run::run(\@call, \undef, $update_out, $update_err);
-}
-
-sub WrapOn {
-	$resulttext->configure(
-		qw/-wrap word/
-	);
-}
-sub WrapOff {
-	$resulttext->configure(
-		qw/-wrap none/
-	);
-}
-
-sub WrapToggle {
-	if ($should_wrap) { WrapOn()  }
-	else              { WrapOff() }
-}
