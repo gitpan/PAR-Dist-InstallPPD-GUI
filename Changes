@@ -1,5 +1,11 @@
 Revision history for Perl extension PAR::Dist::InstallPPD::GUI.
 
+0.04  Sun Dec 22 17:07 2006
+    - Reorganized code a lot, added a couple of sub-modules.
+    - Added "installed" tab which can display the installed modules
+      and their files.
+    - Added status bar.
+
 0.03  Sun Dec 21 19:03 2006
     - Remove commented out code in parinstallppdgui.
     - Instead, add an explanation on how to package it as

@@ -2,7 +2,7 @@ package PAR::Dist::InstallPPD::GUI;
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use File::Spec;
 use Config::IniFiles;
@@ -13,6 +13,10 @@ use IPC::Run ();
 
 use File::UserConfig ();
 use PAR::Dist::FromPPD ();
+
+use base 'PAR::Dist::InstallPPD::GUI::Install';
+use base 'PAR::Dist::InstallPPD::GUI::Installed';
+use base 'PAR::Dist::InstallPPD::GUI::Config';
 
 sub new {
 	my $proto = shift;
@@ -38,209 +42,71 @@ sub new {
 	tie my %cfg => 'Config::IniFiles', -file => $cfgfile;
 
 	my $self = bless {
-		urientry => undef,
 		ppduri => $cfg{main}{ppduri},
 		verbose => $cfg{main}{verbose},
 		shouldwrap => $cfg{main}{shouldwrap},
 		parinstallppd => $cfg{main}{parinstallppd},
 		saregex => $cfg{main}{saregex},
 		spregex => $cfg{main}{spregex},
-		resulttext => '',
 	} => $class;
 	$self->{cfg} = \%cfg;
 	
 	my $mw = MainWindow->new();
+    $self->{mw} = $mw;
 	$mw->geometry( "800x600" );
 	eval { # eval, in case fonts already exist
 		$mw->fontCreate(qw/C_normal  -family courier   -size 10/);
 		$mw->fontCreate(qw/C_bold    -family courier   -size 10 -weight bold/);
 	};
-	my $nb = $mw->NoteBook()->pack( -fill=>'both', -expand=>1 );
 
-	my @tabs;
-	push @tabs, $nb->add( "welcome",  -label => "Welcome" );
-	push @tabs, $nb->add( "install",  -label => "Install" );
-	push @tabs, $nb->add( "config", -label => "Configuration" );
+	my $nb = $mw->NoteBook()->pack(qw/-side top -fill both -expand 1/);
 
-	$tabs[0]->Label( -text=>"Welcome to PAR-Install-PPD-GUI!" )->pack( );
+    # status bar
+    my $statusframe = $mw->Frame(
+        qw/-relief sunken/
+    )->pack(qw/-fill x -side bottom/);
+    my $statuslabel = $statusframe->Label(
+        qw/-text/, 'Welcome to PAR::Dist::InstallPPD::GUI'
+    )->pack(qw/-side left -fill x -ipadx 4 -ipady 1/);
+    $self->{statusbar} = $statuslabel;
 
-	$self->{tabs} = \@tabs;
+    $self->{tabs} = {};
+	$self->{tabs}{welcome}   = $nb->add( "welcome",  -label => "Welcome" );
+	$self->{tabs}{install}   = $nb->add( "install",  -label => "Install" );
+	$self->{tabs}{installed} = $nb->add(
+        "installed", -label => "Installed",
+        -raisecmd => [$self, '_raise_installed'],
+    );
+	$self->{tabs}{config}   = $nb->add( "config", -label => "Configuration" );
+
+	$self->{tabs}{welcome}->Label(
+        -text=>"Welcome to PAR-Install-PPD-GUI!"
+    )->pack( );
+
 	$self->_init_install_tab();
 	$self->_init_config_tab();
+	$self->_init_installed_tab();
 
 	return $self;
 }	
-
-sub _init_install_tab {
-	my $self = shift;
-	my $tabs = $self->{tabs};
-	my $fr = $tabs->[1]->Frame()->pack(qw/-side top -fill both/);
-
-	my $urifr = $fr->Frame()->pack(qw/-side top -fill x/);
-	$urifr->Label(qw/-text/, "PPD URI: ")->pack(qw/-side left -ipady 10/);
-	$self->{urientry} = $urifr->Entry(
-		qw/-width 70 -textvariable/, \$self->{ppduri}
-	)->pack(qw/-side left -ipadx 10/);
-
-    # view button
-	$urifr->Button(
-		qw/-text View -command/, [$self, '_view_ppd'],
-	)->pack(qw/-side left -padx 5/);
-
-    # install button
-	$urifr->Button(
-		qw/-text Install -command/, [$self, '_start_installation'],
-	)->pack(qw/-side left -padx 5/);
-
-	my $resultfr = $fr->Frame()->pack(qw/-side top -fill both/);
-
-	my $tframe = $resultfr->Frame()->pack(qw/-side top -fill x/);
-	$tframe->Label(qw/-text/, "Results:")->pack(qw/-side left/);
-	$tframe->Checkbutton(
-		qw/-text/, "Wrap Lines",
-		qw/-variable/, \$self->{shouldwrap},
-		qw/-command/, [$self, '_wrap_toggle'],
-	)->pack(qw/-side left -padx 3/);
-	$tframe->Checkbutton(
-		qw/-text/, "Verbose Output",
-		qw/-variable/, \$self->{verbose},
-	)->pack(qw/-side left -padx 3/);
-
-	$self->{resulttext} = $resultfr->Scrolled(
-		qw/ROText -scrollbars osoe -background white/
-	)->pack(qw/-side top -fill both -padx 5/);
-	$self->{resulttext}->tag(qw/configure output -foreground black -font C_normal/);
-	$self->{resulttext}->tag(qw/configure error -foreground red -font C_bold/);
-
-    $self->_wrap_toggle();
-}
-
-sub _init_config_tab {
-	my $self = shift;
-	my $tabs = $self->{tabs};
-	my $fr = $tabs->[2]->Frame()->pack(qw/-side top -fill both/);
-
-	$self->_make_entry($fr, '"parinstallppd" command:', $self->{parinstallppd});
-	$self->_make_entry($fr, '--selectarch Regular Expression (leave blank for default):', $self->{saregex});
-	$self->_make_entry($fr, '--selectperl Regular Expression (leave blank for default):', $self->{spregex});
-
-}
-
-sub _make_entry {
-	my $self = shift;
-	my $frame = shift;
-	my $label = shift;
-	my $ref = shift;
-	my $width = shift||80;
-
-	my $fr = $frame->Frame()->pack(qw/-side top -fill x -pady 3/);
-	$fr->Label(qw/-text/, $label.' ')->pack(qw/-side left/);
-	return $fr->Entry(-width => $width, -textvariable => $ref)->pack(qw/-side left -fill x/);
-}
 
 sub run {
 	MainLoop;
 }
 
-sub _view_ppd {
-    my $self = shift;
-    my $ppduri = $self->{ppduri};
-
-    my $ppd;
-    eval {
-        $ppd = PAR::Dist::FromPPD::get_ppd_content($ppduri);
-    };
-
-    $self->_reset_resulttext();
-    if ($@) {
-        $self->_warn_resulttext("Error: $@");
-    }
-    elsif (not defined $ppd) {
-        $self->_warn_resulttext("Error: Could not get PPD");
-    }
-    else {
-        $self->_print_resulttext($ppd);
-    }
-}
-
-sub _reset_resulttext {
-    my $self = shift;
-    $self->{resulttext}->Contents('');
-	$self->{resulttext}->insert('0.0', '');
-}
-
-sub _print_resulttext {
+sub _status {
     my $self = shift;
     my $text = shift;
-    $self->{resulttext}->insert('insert', $text, 'output');
-}
-
-sub _warn_resulttext {
-    my $self = shift;
-    my $text = shift;
-    $self->{resulttext}->insert('insert', $text, 'error');
-}
-
-sub _start_installation {
-	my $self = shift;
-	my $uri = $self->{ppduri};
-	my @call = ($self->{parinstallppd}, '--uri', $self->{ppduri});
-	push @call, '--verbose' if $self->{verbose};
-
-	if (defined $self->{saregex} and $self->{saregex} =~ /\S/) {
-		push @call, '--selectarch', $self->{saregex};
-	}
-	if (defined $self->{spregex} and $self->{spregex} =~ /\S/) {
-		push @call, '--selectperl', $self->{spregex};
-	}
-
-	$self->_reset_resulttext();
-	my $update_out = sub{
-        $self->_print_resulttext(join "", @_);
-	};
-	my $update_err = sub{
-        $self->_warn_resulttext(join "", @_);
-	};
-	IPC::Run::run(\@call, \undef, $update_out, $update_err);
-}
-
-sub _wrap_on {
-	my $self = shift;
-	$self->{resulttext}->configure(
-		qw/-wrap word/
-	);
-}
-
-sub _wrap_off {
-	my $self = shift;
-	$self->{resulttext}->configure(
-		qw/-wrap none/
-	);
-}
-
-sub _wrap_toggle {
-	my $self = shift;
-	if ($self->{shouldwrap}) { $self->_wrap_on()  }
-	else                      { $self->_wrap_off() }
-}
-
-
-sub _save_config {
-	my $self = shift;
-	my $cfg = $self->{cfg};
-	$cfg->{main}{verbose} = $self->{verbose} || 0;
-	$cfg->{main}{ppduri} = $self->{ppduri} || 'http://';
-	$cfg->{main}{shouldwrap} = $self->{shouldwrap} || 0;
-	$cfg->{main}{parinstallppd} = $self->{parinstallppd} || 'parinstallppd';
-	$cfg->{main}{spregex} = $self->{spregex} || '';
-	$cfg->{main}{saregex} = $self->{saregex} || '';
-	tied(%$cfg)->RewriteConfig();
+    $self->{statusbar}->configure('-text' => $text);
+    $self->{mw}->update();
+    return 1;
 }
 
 sub DESTROY {
 	my $self = shift;
 	$self->_save_config();
 }
+
 
 1;
 

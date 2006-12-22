@@ -12,6 +12,7 @@ no_index:
     - t
 requires: 
   Config::IniFiles: 0
+  ExtUtils::Install: 0
   File::UserConfig: 0
   IPC::Run: 0.80
   PAR::Dist::FromPPD: 0.02
@@ -19,4 +20,4 @@ requires:
   Tk: 0
   Tk::ROText: 0
   perl: 5.6.0
-version: 0.03
+version: 0.04

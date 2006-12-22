@@ -16,6 +16,7 @@ requires      'IPC::Run' => '0.80';
 requires      'File::UserConfig' => '0';
 requires      'Config::IniFiles' => '0';
 requires      'PAR::Dist::FromPPD' => '0.02';
+requires      'ExtUtils::Install' => '0';
 
 # generate default config from module:
 use File::Spec;
