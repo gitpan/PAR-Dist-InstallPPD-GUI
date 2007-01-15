@@ -22,7 +22,7 @@ sub install_share {
 	$self->postamble(<<"END_MAKEFILE");
 config ::
 \t\$(NOECHO) \$(MOD_INSTALL) \\
-\t\t\"$dir\" \$(INST_AUTODIR)
+\t\t"$dir" \$(INST_AUTODIR)
 
 END_MAKEFILE
 

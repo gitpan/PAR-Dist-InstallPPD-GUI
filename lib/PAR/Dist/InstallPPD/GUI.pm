@@ -2,7 +2,7 @@ package PAR::Dist::InstallPPD::GUI;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use File::Spec;
 use Config::IniFiles;
@@ -148,7 +148,7 @@ Steffen Mueller, E<lt>smueller at cpan dot orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006 by Steffen Mueller
+Copyright (C) 2006-2007 by Steffen Mueller
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.6 or,

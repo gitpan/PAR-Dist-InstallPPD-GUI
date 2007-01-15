@@ -1,5 +1,10 @@
 Revision history for Perl extension PAR::Dist::InstallPPD::GUI.
 
+0.05  Mon Jan 15 14:32 2007
+    - Added capability to remove modules.
+    - Added capability to filter the list of displayed modules in the
+      "installed" tab.
+
 0.04  Sun Dec 22 17:07 2006
     - Reorganized code a lot, added a couple of sub-modules.
     - Added "installed" tab which can display the installed modules
